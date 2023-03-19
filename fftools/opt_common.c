@@ -240,8 +240,11 @@ void show_banner(int argc, char **argv, const OptionDef *options)
     if (hide_banner || idx)
         return;
 
+    // 打印ffmpeg的版本，版权信息、配置信息
     print_program_info (INDENT|SHOW_COPYRIGHT, AV_LOG_INFO);
+    // 打印子库的配置信息
     print_all_libs_info(INDENT|SHOW_CONFIG,  AV_LOG_INFO);
+    // 打印字库的版本信息
     print_all_libs_info(INDENT|SHOW_VERSION, AV_LOG_INFO);
 }
 
@@ -1142,6 +1145,8 @@ int init_report(const char *env, FILE **file)
     tm = localtime(&now);
 
     while (env && *env) {
+        // exp: FFREPORT=file=ffreport.log:level=32 ffmpeg -i input output
+        // FFREPORT中的参数是以'='分割，每个键值对之间使用':'分割。
         if ((ret = av_opt_get_key_value(&env, "=", ":", 0, &key, &val)) < 0) {
             if (count)
                 av_log(NULL, AV_LOG_ERROR,
@@ -1242,10 +1247,10 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
     };
     const char *token;
     char *tail;
-    int flags = av_log_get_flags();
-    int level = av_log_get_level();
+    int flags = av_log_get_flags(); // 获取当前日志模块的flags
+    int level = av_log_get_level(); // 获取当前日志模块的级别
     int cmd, i = 0;
-
+    // https://ffmpeg.org/ffmpeg.html -loglevel
     av_assert0(arg);
     while (*arg) {
         token = arg;
@@ -1257,17 +1262,21 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
         if (!i && !cmd) {
             flags = 0;  /* missing relative prefix, build absolute value */
         }
+        // 解析日志参数中的flag信息
+        // Flags can also be used alone by adding a ’+’/’-’ prefix to set/reset a single flag without affecting other
+        // flags or changing loglevel. When setting both flags and loglevel, a ’+’ separator is expected between the
+        // last flags value and before loglevel
         if (av_strstart(token, "repeat", &arg)) {
             if (cmd == '-') {
                 flags |= AV_LOG_SKIP_REPEATED;
             } else {
-                flags &= ~AV_LOG_SKIP_REPEATED;
+                flags &= ~AV_LOG_SKIP_REPEATED; // Indicates that repeated log output should not be compressed to the first line and the "Last message repeated n times" line will be omitted.
             }
         } else if (av_strstart(token, "level", &arg)) {
             if (cmd == '-') {
                 flags &= ~AV_LOG_PRINT_LEVEL;
             } else {
-                flags |= AV_LOG_PRINT_LEVEL;
+                flags |= AV_LOG_PRINT_LEVEL; // Indicates that log output should add a [level] prefix to each message line. This can be used as an alternative to log coloring, e.g. when dumping the log to file.
             }
         } else {
             break;
@@ -1283,12 +1292,12 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
     }
 
     for (i = 0; i < FF_ARRAY_ELEMS(log_levels); i++) {
-        if (!strcmp(log_levels[i].name, arg)) {
+        if (!strcmp(log_levels[i].name, arg)) { // 寻找参数中的日志级别
             level = log_levels[i].level;
-            goto end;
+            goto end; // 如果寻找到就结束了。
         }
     }
-
+    // 如果用户设置的是数字，根据数字寻找级别。
     level = strtol(arg, &tail, 10);
     if (*tail) {
         av_log(NULL, AV_LOG_FATAL, "Invalid loglevel \"%s\". "
@@ -1299,8 +1308,8 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
     }
 
 end:
-    av_log_set_flags(flags);
-    av_log_set_level(level);
+    av_log_set_flags(flags); // 设置flags
+    av_log_set_level(level);      // 设置日志级别
     return 0;
 }
 

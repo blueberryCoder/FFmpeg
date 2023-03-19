@@ -26,5 +26,8 @@
 --enable-libfreetype \
 --enable-libfontconfig \
 --enable-libfribidi \
+--disable-optimizations	 \
 --extra-cflags="-I/usr/local/include" \
 --extra-ldflags="-L/usr/local/lib" 
+
+#https://kaisawind.gitee.io/2019/11/19/2019-11-19-ffmpeg-options/#optimization-options-experts-only

@@ -1625,11 +1625,11 @@ static int get_key(const char **ropts, const char *delim, char **rkey)
 {
     const char *opts = *ropts;
     const char *key_start, *key_end;
-
+    // 跳过空白字符
     key_start = opts += strspn(opts, WHITESPACES);
     while (is_key_char(*opts))
-        opts++;
-    key_end = opts;
+        opts++;   // 指针读完key
+    key_end = opts; // 指向了分割符号
     opts += strspn(opts, WHITESPACES);
     if (!*opts || !strchr(delim, *opts))
         return AVERROR(EINVAL);
@@ -1651,9 +1651,11 @@ int av_opt_get_key_value(const char **ropts,
     char *key = NULL, *val;
     const char *opts = *ropts;
 
+    // 寻找到key
     if ((ret = get_key(&opts, key_val_sep, &key)) < 0 &&
         !(flags & AV_OPT_FLAG_IMPLICIT_KEY))
         return AVERROR(EINVAL);
+    // 寻找到value
     if (!(val = av_get_token(&opts, pairs_sep))) {
         av_free(key);
         return AVERROR(ENOMEM);

@@ -42,6 +42,7 @@ int av_strstart(const char *str, const char *pfx, const char **ptr)
     }
     if (!*pfx && ptr)
         *ptr = str;
+    // 如果匹配成功 *pfx会指向字符串结束位置'\0', 那么就是return true
     return !*pfx;
 }
 

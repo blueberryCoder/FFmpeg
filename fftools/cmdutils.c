@@ -184,7 +184,7 @@ static const OptionDef *find_option(const OptionDef *po, const char *name)
     while (po->name) {
         const char *end;
         if (av_strstart(name, po->name, &end) && (!*end || *end == ':'))
-            break;
+            break; // 匹配到了；
         po++;
     }
     return po;
@@ -344,7 +344,7 @@ int parse_option(void *optctx, const char *opt, const char *arg,
     ret = write_option(optctx, po, opt, arg);
     if (ret < 0)
         return ret;
-
+    // 如果有参数:false,如果无参数:true
     return !!(po->flags & HAS_ARG);
 }
 
@@ -364,17 +364,17 @@ void parse_options(void *optctx, int argc, char **argv, const OptionDef *options
 
         if (handleoptions && opt[0] == '-' && opt[1] != '\0') {
             if (opt[1] == '-' && opt[2] == '\0') {
-                handleoptions = 0;
+                handleoptions = 0; // 如果参数是"--" ，即没有拼参数名，则跳过。
                 continue;
             }
             opt++;
-
+            // 如果小于0，说明解析参数发生了错误。
             if ((ret = parse_option(optctx, opt, argv[optindex], options)) < 0)
-                exit_program(1);
+                exit_program(1); // 退出程序。
             optindex += ret;
         } else {
-            if (parse_arg_function)
-                parse_arg_function(optctx, opt);
+            if (parse_arg_function)  // 如果上一个参数是跳过的(handleoptiongs是0),或者参数不是"-"开始的一个字符串，不能只是一个"-"，则执行这个函数。
+                parse_arg_function(optctx, opt); // 这种情况opt可能是要处理文件。
         }
     }
 }
@@ -421,15 +421,15 @@ int locate_option(int argc, char **argv, const OptionDef *options,
     for (i = 1; i < argc; i++) {
         const char *cur_opt = argv[i];
 
-        if (*cur_opt++ != '-')
+        if (*cur_opt++ != '-') // 命令行参数如果不是以'-'开头跳过，不以'-'开头的命令行参数应该只能是输入文件。
             continue;
 
         po = find_option(options, cur_opt);
-        if (!po->name && cur_opt[0] == 'n' && cur_opt[1] == 'o')
+        if (!po->name && cur_opt[0] == 'n' && cur_opt[1] == 'o')   // 有的参数支持增加前缀no
             po = find_option(options, cur_opt + 2);
 
-        if ((!po->name && !strcmp(cur_opt, optname)) ||
-             (po->name && !strcmp(optname, po->name)))
+        if ((!po->name && !strcmp(cur_opt, optname)) || // 如果po->name是空的，直接比对optname和命令行参数。
+             (po->name && !strcmp(optname, po->name)))  // optname == po->name, 如果po->name等于optname,strcmp返回0，所有!strcpm返回true。
             return i;
 
         if (!po->name || po->flags & HAS_ARG)
@@ -465,7 +465,7 @@ static void dump_argument(FILE *report_file, const char *a)
 static void check_options(const OptionDef *po)
 {
     while (po->name) {
-        if (po->flags & OPT_PERFILE)
+        if (po->flags & OPT_PERFILE) // 这个flag只有ffmpeg在用。
             av_assert0(po->flags & (OPT_INPUT | OPT_OUTPUT));
         po++;
     }
@@ -473,17 +473,18 @@ static void check_options(const OptionDef *po)
 
 void parse_loglevel(int argc, char **argv, const OptionDef *options)
 {
+    // options: 全局的参数数组，配置能所有支持的参数。
     int idx = locate_option(argc, argv, options, "loglevel");
     char *env;
 
     check_options(options);
 
     if (!idx)
-        idx = locate_option(argc, argv, options, "v");
+        idx = locate_option(argc, argv, options, "v"); // 在参数中查找v,如果找到则idx不为0。
     if (idx && argv[idx + 1])
-        opt_loglevel(NULL, "loglevel", argv[idx + 1]);
-    idx = locate_option(argc, argv, options, "report");
-    env = getenv_utf8("FFREPORT");
+        opt_loglevel(NULL, "loglevel", argv[idx + 1]); // 根据参数设置日志级别，flags等信息。
+    idx = locate_option(argc, argv, options, "report");  // https://ffmpeg.org/ffmpeg.html  -report
+    env = getenv_utf8("FFREPORT"); // 读取环境变量FFREPORT
     if (env || idx) {
         FILE *report_file = NULL;
         init_report(env, &report_file);
@@ -958,6 +959,7 @@ AVDictionary **setup_find_stream_info_opts(AVFormatContext *s,
 
     if (!s->nb_streams)
         return NULL;
+    // 分配 nb_streams * sizeof(*opts) 内存
     opts = av_calloc(s->nb_streams, sizeof(*opts));
     if (!opts)
         report_and_exit(AVERROR(ENOMEM));

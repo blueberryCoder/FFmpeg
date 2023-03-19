@@ -134,6 +134,7 @@ int av_samples_get_buffer_size(int *linesize, int nb_channels, int nb_samples,
         if (nb_samples > INT_MAX - 31)
             return AVERROR(EINVAL);
         align = 1;
+        // 32字节对齐
         nb_samples = FFALIGN(nb_samples, 32);
     }
 

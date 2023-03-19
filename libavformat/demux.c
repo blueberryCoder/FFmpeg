@@ -78,6 +78,7 @@ static const AVCodec *find_probe_decoder(AVFormatContext *s, const AVStream *st,
         return avcodec_find_decoder_by_name("h264");
 #endif
 
+    // 寻找解码器
     codec = ff_find_decoder(s, st, codec_id);
     if (!codec)
         return NULL;
@@ -2490,7 +2491,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
             goto find_stream_info_err;
         if (sti->request_probe <= 0)
             sti->avctx_inited = 1;
-
+        // 根据codec_id寻找到解码器
         codec = find_probe_decoder(ic, st, st->codecpar->codec_id);
 
         /* Force thread count to 1 since the H.264 decoder will not extract
@@ -2509,7 +2510,7 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         if (!has_codec_parameters(st, NULL) && sti->request_probe <= 0 ||
             st->codecpar->codec_type == AVMEDIA_TYPE_SUBTITLE) {
             if (codec && !avctx->codec)
-                if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0)
+                if (avcodec_open2(avctx, codec, options ? &options[i] : &thread_opt) < 0) // 打开解码器
                     av_log(ic, AV_LOG_WARNING,
                            "Failed to open codec in %s\n",__FUNCTION__);
         }
