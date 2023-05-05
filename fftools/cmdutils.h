@@ -144,12 +144,12 @@ typedef struct SpecifierOpt {
 } SpecifierOpt;
 
 typedef struct OptionDef {
-    const char *name;
+    const char *name; // 参数的名称
     int flags;
-#define HAS_ARG    0x0001
-#define OPT_BOOL   0x0002
+#define HAS_ARG    0x0001     // 参数是否有值
+#define OPT_BOOL   0x0002     // 参数值类型是否为BOOL
 #define OPT_EXPERT 0x0004
-#define OPT_STRING 0x0008
+#define OPT_STRING 0x0008     // 参数值类型是否为String
 #define OPT_VIDEO  0x0010
 #define OPT_AUDIO  0x0020
 #define OPT_INT    0x0080

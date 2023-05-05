@@ -197,10 +197,11 @@ static void ansi_fputs(int level, int tint, const char *str, int local_use_color
                 tint,
                 str);
     } else if (local_use_color == 256) {
+        // https://en.wikipedia.org/wiki/ANSI_escape_code
         fprintf(stderr,
                 "\033[48;5;%"PRIu32"m\033[38;5;%"PRIu32"m%s\033[0m",
-                (color[level] >> 16) & 0xff,
-                (color[level] >> 8) & 0xff,
+                (color[level] >> 16) & 0xff, // 背景色
+                (color[level] >> 8) & 0xff,  // 前景色
                 str);
     } else
         fputs(str, stderr);
@@ -294,36 +295,36 @@ static const char *get_level_str(int level)
 static void format_line(void *avcl, int level, const char *fmt, va_list vl,
                         AVBPrint part[4], int *print_prefix, int type[2])
 {
-    AVClass* avc = avcl ? *(AVClass **) avcl : NULL;
-    av_bprint_init(part+0, 0, AV_BPRINT_SIZE_AUTOMATIC);
-    av_bprint_init(part+1, 0, AV_BPRINT_SIZE_AUTOMATIC);
-    av_bprint_init(part+2, 0, AV_BPRINT_SIZE_AUTOMATIC);
-    av_bprint_init(part+3, 0, 65536);
+    AVClass* avc = avcl ? *(AVClass **) avcl : NULL; // 初始化4个AVBPrint,不会动态扩容
+    av_bprint_init(part+0, 0, AV_BPRINT_SIZE_AUTOMATIC); // parent信息
+    av_bprint_init(part+1, 0, AV_BPRINT_SIZE_AUTOMATIC); // 自身信息
+    av_bprint_init(part+2, 0, AV_BPRINT_SIZE_AUTOMATIC); // level信息
+    av_bprint_init(part+3, 0, 65536);                    // 用户参数
 
     if(type) type[0] = type[1] = AV_CLASS_CATEGORY_NA + 16;
-    if (*print_prefix && avc) {
-        if (avc->parent_log_context_offset) {
+    if (*print_prefix && avc) { // avc 不为空的情况
+        if (avc->parent_log_context_offset) { // 获取parent
             AVClass** parent = *(AVClass ***) (((uint8_t *) avcl) +
                                    avc->parent_log_context_offset);
-            if (parent && *parent) {
-                av_bprintf(part+0, "[%s @ %p] ",
+            if (parent && *parent) { // 将parent打印到 part0中。
+                av_bprintf(part+0, "[%s @ %p] ", // %p 打印地址
                          (*parent)->item_name(parent), parent);
-                if(type) type[0] = get_category(parent);
+                if(type) type[0] = get_category(parent);  // 获取parent的分类信息。
             }
         }
         av_bprintf(part+1, "[%s @ %p] ",
-                 avc->item_name(avcl), avcl);
-        if(type) type[1] = get_category(avcl);
+                 avc->item_name(avcl), avcl);        // 打印自身的信息
+        if(type) type[1] = get_category(avcl);  // 获取自身的分类信息。
     }
 
     if (*print_prefix && (level > AV_LOG_QUIET) && (flags & AV_LOG_PRINT_LEVEL))
-        av_bprintf(part+2, "[%s] ", get_level_str(level));
+        av_bprintf(part+2, "[%s] ", get_level_str(level)); // 是否打印日志的level信息
 
-    av_vbprintf(part+3, fmt, vl);
+    av_vbprintf(part+3, fmt, vl); // 打印用户的参数信息信息
 
     if(*part[0].str || *part[1].str || *part[2].str || *part[3].str) {
         char lastc = part[3].len && part[3].len <= part[3].size ? part[3].str[part[3].len - 1] : 0;
-        *print_prefix = lastc == '\n' || lastc == '\r';
+        *print_prefix = lastc == '\n' || lastc == '\r'; // 如果最后一个字符是\n或\r则下一行需要打印level信息。
     }
 }
 
@@ -340,8 +341,8 @@ int av_log_format_line2(void *ptr, int level, const char *fmt, va_list vl,
     int ret;
 
     format_line(ptr, level, fmt, vl, part, print_prefix, NULL);
-    ret = snprintf(line, line_size, "%s%s%s%s", part[0].str, part[1].str, part[2].str, part[3].str);
-    av_bprint_finalize(part+3, NULL);
+    ret = snprintf(line, line_size, "%s%s%s%s", part[0].str, part[1].str, part[2].str, part[3].str); // 把四个部分整合在一起
+    av_bprint_finalize(part+3, NULL); // 释放内存
     return ret;
 }
 
@@ -370,23 +371,23 @@ void av_log_default_callback(void* ptr, int level, const char* fmt, va_list vl)
 
 #if HAVE_ISATTY
     if (!is_atty)
-        is_atty = isatty(2) ? 1 : -1;
+        is_atty = isatty(2) ? 1 : -1; // 测试fd是不是terminal
 #endif
 
     if (print_prefix && (flags & AV_LOG_SKIP_REPEATED) && !strcmp(line, prev) &&
-        *line && line[strlen(line) - 1] != '\r'){
+        *line && line[strlen(line) - 1] != '\r'){ // 如果当前行与上一行打印的日志内容相同，并且AV_LOG_SKIP_REPEATED是开启的状态。
         count++;
         if (is_atty == 1)
             fprintf(stderr, "    Last message repeated %d times\r", count);
         goto end;
     }
-    if (count > 0) {
+    if (count > 0) { // 如果is_atty!=1 ,则再下一个不重复的日志前打印下。
         fprintf(stderr, "    Last message repeated %d times\n", count);
         count = 0;
     }
     strcpy(prev, line);
-    sanitize(part[0].str);
-    colored_fputs(type[0], 0, part[0].str);
+    sanitize(part[0].str); // 将一些不适合打印的字符，转换为'？'
+    colored_fputs(type[0], 0, part[0].str); // 使字符在命令行中有颜色。
     sanitize(part[1].str);
     colored_fputs(type[1], 0, part[1].str);
     sanitize(part[2].str);

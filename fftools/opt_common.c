@@ -240,11 +240,14 @@ void show_banner(int argc, char **argv, const OptionDef *options)
     if (hide_banner || idx)
         return;
 
+    // 打印ffmpeg的版本，版权信息、配置信息
     print_program_info (INDENT|SHOW_COPYRIGHT, AV_LOG_INFO);
+    // 打印子库的配置信息
     print_all_libs_info(INDENT|SHOW_CONFIG,  AV_LOG_INFO);
+    // 打印字库的版本信息
     print_all_libs_info(INDENT|SHOW_VERSION, AV_LOG_INFO);
 }
-
+// 处理 -version
 int show_version(void *optctx, const char *opt, const char *arg)
 {
     av_log_set_callback(log_callback_help);
@@ -1092,10 +1095,10 @@ static void expand_filename_template(AVBPrint *bp, const char *template,
             if (!(c = *(template++)))
                 break;
             switch (c) {
-            case 'p':
+            case 'p': // %p 代表程序名
                 av_bprintf(bp, "%s", program_name);
                 break;
-            case 't':
+            case 't': // %t 代表时间
                 av_bprintf(bp, "%04d%02d%02d-%02d%02d%02d",
                            tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
                            tm->tm_hour, tm->tm_min, tm->tm_sec);
@@ -1113,15 +1116,15 @@ static void expand_filename_template(AVBPrint *bp, const char *template,
 static void log_callback_report(void *ptr, int level, const char *fmt, va_list vl)
 {
     va_list vl2;
-    char line[1024];
+    char line[1024]; // 只有1024长度
     static int print_prefix = 1;
 
     va_copy(vl2, vl);
-    av_log_default_callback(ptr, level, fmt, vl);
+    av_log_default_callback(ptr, level, fmt, vl); // 也调用默认的打印，打印一次。
     av_log_format_line(ptr, level, fmt, vl2, line, sizeof(line), &print_prefix);
     va_end(vl2);
-    if (report_file_level >= level) {
-        fputs(line, report_file);
+    if (report_file_level >= level) { // 判断日志级别
+        fputs(line, report_file);     // 将日志输出到文件
         fflush(report_file);
     }
 }
@@ -1139,9 +1142,11 @@ int init_report(const char *env, FILE **file)
     if (report_file) /* already opened */
         return 0;
     time(&now);
-    tm = localtime(&now);
+    tm = localtime(&now); // 获取当前时间，用来生成文件名
 
     while (env && *env) {
+        // exp: FFREPORT=file=ffreport.log:level=32 ffmpeg -i input output
+        // FFREPORT中的参数是以'='分割，每个键值对之间使用':'分割。
         if ((ret = av_opt_get_key_value(&env, "=", ":", 0, &key, &val)) < 0) {
             if (count)
                 av_log(NULL, AV_LOG_ERROR,
@@ -1154,11 +1159,11 @@ int init_report(const char *env, FILE **file)
         count++;
         if (!strcmp(key, "file")) {
             av_free(filename_template);
-            filename_template = val;
+            filename_template = val; // 获得用户设置的文件名模版
             val = NULL;
-        } else if (!strcmp(key, "level")) {
-            char *tail;
-            report_file_level = strtol(val, &tail, 10);
+        } else if (!strcmp(key, "level")) { // 这个环境变量中还可以设置level, 如：FFREPORT=file=ffreport.log:level=32 ffmpeg -i input output
+          char *tail;
+            report_file_level = strtol(val, &tail, 10); // 解析到日志level
             if (*tail) {
                 av_log(NULL, AV_LOG_FATAL, "Invalid report file level\n");
                 exit_program(1);
@@ -1172,6 +1177,7 @@ int init_report(const char *env, FILE **file)
     }
 
     av_bprint_init(&filename, 0, AV_BPRINT_SIZE_AUTOMATIC);
+    // 如果没有配置文件名称，则默认使用%p-%t.log这个文件名模版
     expand_filename_template(&filename,
                              av_x_if_null(filename_template, "%p-%t.log"), tm);
     av_free(filename_template);
@@ -1182,9 +1188,9 @@ int init_report(const char *env, FILE **file)
 
     prog_loglevel = av_log_get_level();
     if (!envlevel)
-        report_file_level = FFMAX(report_file_level, prog_loglevel);
+        report_file_level = FFMAX(report_file_level, prog_loglevel); // 设置文件日志级别，默认是debug
 
-    report_file = fopen(filename.str, "w");
+    report_file = fopen(filename.str, "w"); // 打开文件
     if (!report_file) {
         int ret = AVERROR(errno);
         av_log(NULL, AV_LOG_ERROR, "Failed to open report \"%s\": %s\n",
@@ -1192,6 +1198,7 @@ int init_report(const char *env, FILE **file)
         return ret;
     }
     av_log_set_callback(log_callback_report);
+    // 文件开头写一下程序名，日期，日志级别信息。
     av_log(NULL, AV_LOG_INFO,
            "%s started on %04d-%02d-%02d at %02d:%02d:%02d\n"
            "Report written to \"%s\"\n"
@@ -1242,10 +1249,10 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
     };
     const char *token;
     char *tail;
-    int flags = av_log_get_flags();
-    int level = av_log_get_level();
+    int flags = av_log_get_flags(); // 获取当前日志模块的flags
+    int level = av_log_get_level(); // 获取当前日志模块的级别
     int cmd, i = 0;
-
+    // https://ffmpeg.org/ffmpeg.html -loglevel
     av_assert0(arg);
     while (*arg) {
         token = arg;
@@ -1257,17 +1264,21 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
         if (!i && !cmd) {
             flags = 0;  /* missing relative prefix, build absolute value */
         }
+        // 解析日志参数中的flag信息
+        // Flags can also be used alone by adding a ’+’/’-’ prefix to set/reset a single flag without affecting other
+        // flags or changing loglevel. When setting both flags and loglevel, a ’+’ separator is expected between the
+        // last flags value and before loglevel
         if (av_strstart(token, "repeat", &arg)) {
             if (cmd == '-') {
                 flags |= AV_LOG_SKIP_REPEATED;
             } else {
-                flags &= ~AV_LOG_SKIP_REPEATED;
+                flags &= ~AV_LOG_SKIP_REPEATED; // Indicates that repeated log output should not be compressed to the first line and the "Last message repeated n times" line will be omitted.
             }
         } else if (av_strstart(token, "level", &arg)) {
             if (cmd == '-') {
                 flags &= ~AV_LOG_PRINT_LEVEL;
             } else {
-                flags |= AV_LOG_PRINT_LEVEL;
+                flags |= AV_LOG_PRINT_LEVEL; // Indicates that log output should add a [level] prefix to each message line. This can be used as an alternative to log coloring, e.g. when dumping the log to file.
             }
         } else {
             break;
@@ -1275,20 +1286,21 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
         i++;
     }
     if (!*arg) {
-        goto end;
+        goto end; //如果没有参数，则不用设置什么
     } else if (*arg == '+') {
-        arg++;
+        arg++; // 跳过'+'
     } else if (!i) {
+        // 如果配置的level前面没有前缀"+"则会重置flags
         flags = av_log_get_flags();  /* level value without prefix, reset flags */
     }
 
     for (i = 0; i < FF_ARRAY_ELEMS(log_levels); i++) {
-        if (!strcmp(log_levels[i].name, arg)) {
+        if (!strcmp(log_levels[i].name, arg)) { // 寻找参数中的日志级别
             level = log_levels[i].level;
-            goto end;
+            goto end; // 如果寻找到就结束了。
         }
     }
-
+    // 如果用户设置的是数字，根据数字寻找级别。
     level = strtol(arg, &tail, 10);
     if (*tail) {
         av_log(NULL, AV_LOG_FATAL, "Invalid loglevel \"%s\". "
@@ -1299,8 +1311,8 @@ int opt_loglevel(void *optctx, const char *opt, const char *arg)
     }
 
 end:
-    av_log_set_flags(flags);
-    av_log_set_level(level);
+    av_log_set_flags(flags); // 设置flags
+    av_log_set_level(level);      // 设置日志级别
     return 0;
 }
 

@@ -94,7 +94,7 @@ FF_PAD_STRUCTURE(AVBPrint, 1024,
     char *str;         /**< string so far */
     unsigned len;      /**< length so far */
     unsigned size;     /**< allocated memory */
-    unsigned size_max; /**< maximum allocated memory */
+    unsigned size_max; /**< maximum allocated memory */  // -1：可以无限大，如果写入的字符超过内存大小，则会扩大内存。0：只计算长度，不写内存，1：不会扩大内存，只会替换存在的字符。
     char reserved_internal_buffer[1];
 )
 
