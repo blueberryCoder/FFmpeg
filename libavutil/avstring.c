@@ -142,9 +142,15 @@ end:
 
 #define WHITESPACES " \n\t\r"
 
+/**
+ *
+ * @param buf  剩余的字符
+ * @param term  分割符号
+ * @return  是返回解析到的字符串
+ */
 char *av_get_token(const char **buf, const char *term)
 {
-    char *out     = av_malloc(strlen(*buf) + 1);
+    char *out     = av_malloc(strlen(*buf) + 1); // 分配足够长的内存。
     char *ret     = out, *end = out;
     const char *p = *buf;
     if (!out)
@@ -154,23 +160,23 @@ char *av_get_token(const char **buf, const char *term)
     while (*p && !strspn(p, term)) {
         char c = *p++;
         if (c == '\\' && *p) {
-            *out++ = *p++;
-            end    = out;
+            *out++ = *p++; // 跳过 '\'字符
+            end    = out;  // 直接结束？
         } else if (c == '\'') {
             while (*p && *p != '\'')
-                *out++ = *p++;
+                *out++ = *p++; // 把引号中的字符解析出来
             if (*p) {
                 p++;
-                end = out;
+                end = out; // 引号括起来的也会提前截断。
             }
         } else {
-            *out++ = c;
+            *out++ = c; // 无特殊转义字符，直接赋值。
         }
     }
 
     do
         *out-- = 0;
-    while (out >= end && strspn(out, WHITESPACES));
+    while (out >= end && strspn(out, WHITESPACES)); // 如果因为'\'或'''已经得到字符结尾，或者后面有WHITESPACES,就认为是字符的结束。
 
     *buf = p;
 

@@ -1627,21 +1627,34 @@ static int get_key(const char **ropts, const char *delim, char **rkey)
     const char *key_start, *key_end;
     // 跳过空白字符
     key_start = opts += strspn(opts, WHITESPACES);
-    while (is_key_char(*opts))
+//    av_log(NULL, AV_LOG_INFO, "blueberry opts=%s \n", opts);
+    while (is_key_char(*opts)) // 这里读的是首字母
         opts++;   // 指针读完key
     key_end = opts; // 指向了分割符号
+//    av_log(NULL, AV_LOG_INFO, "blueberry is_key_char(=) = %ld \n", is_key_char('='));
+//    av_log(NULL, AV_LOG_INFO, "blueberry key_end-key_start=%ld \n", key_end - key_start);
     opts += strspn(opts, WHITESPACES);
     if (!*opts || !strchr(delim, *opts))
         return AVERROR(EINVAL);
     opts++;
     if (!(*rkey = av_malloc(key_end - key_start + 1)))
         return AVERROR(ENOMEM);
-    memcpy(*rkey, key_start, key_end - key_start);
-    (*rkey)[key_end - key_start] = 0;
+    memcpy(*rkey, key_start, key_end - key_start); // 复制key的内容到输出rkey中
+    (*rkey)[key_end - key_start] = 0;  // 字符\0 结尾
     *ropts = opts;
+//    av_log(NULL, AV_LOG_INFO, "blueberry rkey=%s \n",*rkey);
     return 0;
 }
-
+/**
+ *
+ * @param ropts
+ * @param key_val_sep 键值对之间的分隔符
+ * @param pairs_sep  key-value之间的分割符
+ * @param flags
+ * @param rkey  用来返回key
+ * @param rval  用来返回value
+ * @return
+ */
 int av_opt_get_key_value(const char **ropts,
                          const char *key_val_sep, const char *pairs_sep,
                          unsigned flags,

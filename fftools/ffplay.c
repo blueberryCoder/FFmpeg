@@ -589,7 +589,7 @@ static int decoder_decode_frame(Decoder *d, AVFrame *frame, AVSubtitle *sub) {
                         ret = avcodec_receive_frame(d->avctx, frame);
                         if (ret >= 0) {
                             if (decoder_reorder_pts == -1) {
-                                frame->pts = frame->best_effort_timestamp;
+                                frame->pts = frame->best_effort_timestamp; // best_effort_timestamp 是一个更健壮的值，它在pts获取不到的情况下，会使用一些测略估算出pts。
                             } else if (!decoder_reorder_pts) {
                                 frame->pts = frame->pkt_dts;
                             }
@@ -1789,7 +1789,7 @@ static int get_video_frame(VideoState *is, AVFrame *frame)
         double dpts = NAN;
 
         if (frame->pts != AV_NOPTS_VALUE)
-            dpts = av_q2d(is->video_st->time_base) * frame->pts;
+            dpts = av_q2d(is->video_st->time_base) * frame->pts; // frame->pts是一个相对时间，需要乘以时间基 time_base 才能得到真正的时间单位
 
         frame->sample_aspect_ratio = av_guess_sample_aspect_ratio(is->ic, is->video_st, frame);
 
@@ -2166,7 +2166,7 @@ static int video_thread(void *arg)
     for (;;) {
         ret = get_video_frame(is, frame);
         if (ret < 0)
-            goto the_end;
+            goto the_end; // 用户seek后，导致未获取到视频picture, 或解码发生错误。
         if (!ret)
             continue;
 
@@ -2616,6 +2616,7 @@ static int stream_component_open(VideoState *is, int stream_index)
     ret = avcodec_parameters_to_context(avctx, ic->streams[stream_index]->codecpar);
     if (ret < 0)
         goto fail;
+    // ?
     avctx->pkt_timebase = ic->streams[stream_index]->time_base;
     // 根据解码器id,寻找解码器
     codec = avcodec_find_decoder(avctx->codec_id);
@@ -2625,7 +2626,7 @@ static int stream_component_open(VideoState *is, int stream_index)
         case AVMEDIA_TYPE_SUBTITLE: is->last_subtitle_stream = stream_index; forced_codec_name = subtitle_codec_name; break;
         case AVMEDIA_TYPE_VIDEO   : is->last_video_stream    = stream_index; forced_codec_name =    video_codec_name; break;
     }
-    if (forced_codec_name)
+    if (forced_codec_name) // 如果强制设置了codec_name则根据用户设置的codec_name寻找解码器。
         codec = avcodec_find_decoder_by_name(forced_codec_name);
     if (!codec) {
         if (forced_codec_name) av_log(NULL, AV_LOG_WARNING,
@@ -2941,7 +2942,7 @@ static int read_thread(void *arg)
     if (!audio_disable) // 寻找最合适的音频流
         st_index[AVMEDIA_TYPE_AUDIO] =
             av_find_best_stream(ic, AVMEDIA_TYPE_AUDIO,
-                                st_index[AVMEDIA_TYPE_AUDIO],
+                                st_index[AVMEDIA_TYPE_AUDIO], // -1
                                 st_index[AVMEDIA_TYPE_VIDEO],
                                 NULL, 0);
     if (!video_disable && !subtitle_disable) // 寻找最合适的字幕流
@@ -2989,7 +2990,7 @@ static int read_thread(void *arg)
     if (infinite_buffer < 0 && is->realtime)
         infinite_buffer = 1;
 
-    for (;;) {
+    for (;;) { // 进入循环解复用
         if (is->abort_request) // 音频/视频/字幕 开始解码的时候会将这个置为0, （stream_component_open#decoder_start 中会将这个置为0）
             break;
         if (is->paused != is->last_paused) {
@@ -3750,6 +3751,7 @@ void show_help_default(const char *opt, const char *arg)
  * 4. 进入循环
  *    - 监听键盘事件
  *    - 刷新界面
+ *    // -v level-repeat+info -report   /Users/bytedance/tmp/my/0226/juren-5s.mp4
  */
 /* Called from the main */
 int main(int argc, char **argv)
@@ -3759,7 +3761,7 @@ int main(int argc, char **argv)
 
     init_dynload(); // 仅window
 
-    av_log_set_flags(AV_LOG_SKIP_REPEATED); // // 设置日志如果是重复文案是否跳过
+    av_log_set_flags(AV_LOG_SKIP_REPEATED); //  设置日志如果是重复文案是否跳过
     parse_loglevel(argc, argv, options); // 从参数中解析日志级别、日志是否要落文件、是否要输出banner信息。
 
     /* register all codecs, demux and protocols */
@@ -3828,7 +3830,7 @@ int main(int argc, char **argv)
         if (window) {
             // 创建renderer, 可以用这个画图形。
             renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC);
-            if (!renderer) {
+            if (!renderer) { // flags变为0，兜底再重新创建异常renderer.
                 av_log(NULL, AV_LOG_WARNING, "Failed to initialize a hardware accelerated renderer: %s\n", SDL_GetError());
                 renderer = SDL_CreateRenderer(window, -1, 0);
             }

@@ -43,15 +43,15 @@ static int av_bprint_alloc(AVBPrint *buf, unsigned room)
     if (!av_bprint_is_complete(buf))
         return AVERROR_INVALIDDATA; /* it is already truncated anyway */
     min_size = buf->len + 1 + FFMIN(UINT_MAX - buf->len - 1, room);
-    new_size = buf->size > buf->size_max / 2 ? buf->size_max : buf->size * 2;
+    new_size = buf->size > buf->size_max / 2 ? buf->size_max : buf->size * 2; // 扩大一倍。
     if (new_size < min_size)
         new_size = FFMIN(buf->size_max, min_size);
     old_str = av_bprint_is_allocated(buf) ? buf->str : NULL;
-    new_str = av_realloc(old_str, new_size);
+    new_str = av_realloc(old_str, new_size); // 重新分配内存。
     if (!new_str)
         return AVERROR(ENOMEM);
     if (!old_str)
-        memcpy(new_str, buf->str, buf->len + 1);
+        memcpy(new_str, buf->str, buf->len + 1); // 复制原先的字符串到新分配的内存。
     buf->str  = new_str;
     buf->size = new_size;
     return 0;
@@ -69,16 +69,16 @@ static void av_bprint_grow(AVBPrint *buf, unsigned extra_len)
 void av_bprint_init(AVBPrint *buf, unsigned size_init, unsigned size_max)
 {
     unsigned size_auto = (char *)buf + sizeof(*buf) -
-                         buf->reserved_internal_buffer;
+                         buf->reserved_internal_buffer;  // 1024 - 结构体头本身占用的大小
 
     if (size_max == 1)
-        size_max = size_auto;
+        size_max = size_auto; // 如果size_max == 1 使用，1024-结构体头本身大小
     buf->str      = buf->reserved_internal_buffer;
-    buf->len      = 0;
-    buf->size     = FFMIN(size_auto, size_max);
+    buf->len      = 0; // 初始化字符长度为0
+    buf->size     = FFMIN(size_auto, size_max); // 如果字符串的大小 小于等于buf->size,后续不需要再动态扩大内存。
     buf->size_max = size_max;
     *buf->str = 0;
-    if (size_init > buf->size)
+    if (size_init > buf->size) // 如果size_init大于buf-size，需要重新分配内存。
         av_bprint_alloc(buf, size_init - 1);
 }
 
@@ -122,19 +122,21 @@ void av_vbprintf(AVBPrint *buf, const char *fmt, va_list vl_arg)
     va_list vl;
 
     while (1) {
-        room = av_bprint_room(buf);
+        room = av_bprint_room(buf); // 剩余的大小
         dst = room ? buf->str + buf->len : NULL;
         va_copy(vl, vl_arg);
-        extra_len = vsnprintf(dst, room, fmt, vl);
+        extra_len = vsnprintf(dst, room, fmt, vl); // dst是NULL,以及room是0的情况，这里返回的是参数的长度
         va_end(vl);
-        if (extra_len <= 0)
+        if (extra_len <= 0) // 写入失败了
             return;
-        if (extra_len < room)
+        if (extra_len < room) // 写入成功了
             break;
-        if (av_bprint_alloc(buf, extra_len))
-            break;
+        // If the resulting string would be longer than n-1 characters, the remaining characters are discarded and not stored, but counted for the value returned by the function.
+        // https://cplusplus.com/reference/cstdio/vsnprintf/
+        if (av_bprint_alloc(buf, extra_len)) // 内存不足，重新分配内存，后重新写入试试。
+            break; // 如果分配失败，break.
     }
-    av_bprint_grow(buf, extra_len);
+    av_bprint_grow(buf, extra_len); // 写入成功的情况，增加字符的长度
 }
 
 void av_bprint_chars(AVBPrint *buf, char c, unsigned n)
@@ -232,6 +234,12 @@ void av_bprint_clear(AVBPrint *buf)
     }
 }
 
+/**
+ *
+ * @param buf
+ * @param ret_str 如果为空，会回收内存。 如果不是空，这个用来返回目前分配的str.
+ * @return
+ */
 int av_bprint_finalize(AVBPrint *buf, char **ret_str)
 {
     unsigned real_size = FFMIN(buf->len + 1, buf->size);
@@ -251,8 +259,8 @@ int av_bprint_finalize(AVBPrint *buf, char **ret_str)
         }
         *ret_str = str;
     } else {
-        if (av_bprint_is_allocated(buf))
-            av_freep(&buf->str);
+        if (av_bprint_is_allocated(buf)) // 如果之前已经分配了内存
+            av_freep(&buf->str);     // 释放原来的内存
     }
     buf->size = real_size;
     return ret;

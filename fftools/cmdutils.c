@@ -471,26 +471,27 @@ static void check_options(const OptionDef *po)
     }
 }
 
+// options: 全局的参数数组，配置能所有支持的参数。
 void parse_loglevel(int argc, char **argv, const OptionDef *options)
 {
-    // options: 全局的参数数组，配置能所有支持的参数。
+    // 1.先根据loglevel在命令行参数中查找日志配置
     int idx = locate_option(argc, argv, options, "loglevel");
     char *env;
 
     check_options(options);
 
     if (!idx)
-        idx = locate_option(argc, argv, options, "v"); // 在参数中查找v,如果找到则idx不为0。
+        idx = locate_option(argc, argv, options, "v"); // 2. 如果没有找到loglevel，则在参数中查找v,如果找到则idx不为0。
     if (idx && argv[idx + 1])
-        opt_loglevel(NULL, "loglevel", argv[idx + 1]); // 根据参数设置日志级别，flags等信息。
+        opt_loglevel(NULL, "loglevel", argv[idx + 1]); // 3. 根据参数设置日志级别，flags等信息。
     idx = locate_option(argc, argv, options, "report");  // https://ffmpeg.org/ffmpeg.html  -report
     env = getenv_utf8("FFREPORT"); // 读取环境变量FFREPORT
     if (env || idx) {
         FILE *report_file = NULL;
-        init_report(env, &report_file);
+        init_report(env, &report_file); // 初始化上报文件
         if (report_file) {
             int i;
-            fprintf(report_file, "Command line:\n");
+            fprintf(report_file, "Command line:\n"); // 打印用户的命令行参数
             for (i = 0; i < argc; i++) {
                 dump_argument(report_file, argv[i]);
                 fputc(i < argc - 1 ? ' ' : '\n', report_file);
@@ -498,8 +499,8 @@ void parse_loglevel(int argc, char **argv, const OptionDef *options)
             fflush(report_file);
         }
     }
-    freeenv_utf8(env);
-    idx = locate_option(argc, argv, options, "hide_banner");
+    freeenv_utf8(env); // 空实现
+    idx = locate_option(argc, argv, options, "hide_banner"); // 是否要不显示banner.
     if (idx)
         hide_banner = 1;
 }

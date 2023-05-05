@@ -27,7 +27,9 @@
 --enable-libfontconfig \
 --enable-libfribidi \
 --disable-optimizations	 \
+--disable-stripping	\
 --extra-cflags="-I/usr/local/include" \
 --extra-ldflags="-L/usr/local/lib" 
 
-#https://kaisawind.gitee.io/2019/11/19/2019-11-19-ffmpeg-options/#optimization-options-experts-only
+# https://kaisawind.gitee.io/2019/11/19/2019-11-19-ffmpeg-options/#optimization-options-experts-only
+# debug-level : https://gcc.gnu.org/onlinedocs/gcc/Debugging-Options.html
